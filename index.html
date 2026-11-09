@@ -131,6 +131,7 @@ body[data-coin=silver] .face{background:radial-gradient(circle at 32% 26%,#fff,#
 body[data-coin=copper] .face{background:radial-gradient(circle at 32% 26%,#ffd9bd,#e38c55 45%,#8a4421 85%);color:#4a2108;box-shadow:inset 0 0 0 7px rgba(90,40,10,.4),inset 0 0 0 9px rgba(255,210,180,.5),inset 0 -8px 18px rgba(80,30,5,.4)}body[data-coin=copper] .e{background:#7a3c1a}
 body[data-coin=night] .face{background:radial-gradient(circle at 32% 26%,#5b6178,#242836 50%,#0f1118 90%);color:#ffd36a;text-shadow:0 0 10px rgba(255,200,80,.6);box-shadow:inset 0 0 0 7px rgba(255,211,106,.25),inset 0 0 0 9px rgba(255,211,106,.5),inset 0 -8px 18px rgba(0,0,0,.5)}body[data-coin=night] .e{background:#161922}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.lkv{padding:12px 14px;border:1px solid var(--ln);border-radius:14px;background:rgba(0,0,0,.28);color:var(--fg);font:500 .95rem/1.5 var(--bd);text-align:left;overflow-wrap:anywhere;word-break:break-all;user-select:all;max-height:160px;overflow:auto}
 </style></head>
 <body data-mode="normal"><div class="bg"></div>
 <div class="app">
@@ -158,6 +159,7 @@ body[data-coin=night] .face{background:radial-gradient(circle at 32% 26%,#5b6178
 <section class="tool" id="t-cark" hidden><div class="th"><h2>Şans Çarkı</h2><p>Seçeneklerini yaz, çarkı çevir.</p></div>
 <div class="stage"><div class="wheel" id="wh"><canvas id="wc" width="700" height="700" role="img" aria-label="Şans çarkı"></canvas><div class="ptr" id="ptr"><svg viewBox="0 0 34 46"><path d="M17 44C9 32 3 24 3 15a14 14 0 0 1 28 0c0 9-6 17-14 29z" style="fill:var(--ac)"/><circle cx="17" cy="15" r="5.5" fill="#12161b"/></svg></div></div></div>
 <div class="res"><b id="wres">—</b><span id="wsub">Çarkı çevirmek için düğmeye bas.</span></div>
+<div class="panel" id="wlk" hidden><div class="fl w"><span class="lb">Seçilen bağlantı</span><div class="lkv" id="wlv"></div></div><div class="fl w"><button class="btn g" id="wcp" type="button">Bağlantıyı Kopyala</button></div></div>
 <div class="acts s2"><button class="btn" id="wgo">Çarkı Çevir</button><button class="btn g rev" data-t="cark">Göster</button></div>
 <div class="panel"><div class="fl w"><label for="wt">Seçenekler · her satıra bir tane (2–24)</label><textarea id="wt" spellcheck="false">Pizza
 Burger
@@ -310,6 +312,15 @@ $('df').addEventListener('input',sync);sync();
 /* ---------- wheel: rAF physics, ticks synced to pegs ---------- */
 var wc=$('wc'),cx=wc.getContext('2d'),wRot=0,wb=false,wHide=false,ptrA=0;
 function wOpts(){return $('wt').value.split(/\r?\n/).map(function(x){return x.trim().slice(0,24)}).filter(Boolean)}
+function wFull(){return $('wt').value.split(/\r?\n/).map(function(x){return x.trim().slice(0,2000)}).filter(Boolean)}
+var wLink='';
+function wShowLink(t){wLink=t||'';$('wlk').hidden=!wLink;$('wlv').textContent=wLink;$('wcp').textContent='Bağlantıyı Kopyala'}
+$('wcp').addEventListener('click',async function(){
+  if(!wLink)return;var b=this,ok=false;
+  try{await navigator.clipboard.writeText(wLink);ok=true}catch(e){
+    try{var ta=document.createElement('textarea');ta.value=wLink;ta.setAttribute('readonly','');ta.style.cssText='position:fixed;left:-9999px;top:0;opacity:0';document.body.appendChild(ta);ta.select();ta.setSelectionRange(0,ta.value.length);ok=document.execCommand('copy');ta.remove()}catch(e2){}}
+  b.textContent=ok?'Kopyalandı ✓':'Kopyalanamadı, metne uzun basıp kopyala';S.click();
+  setTimeout(function(){if(wLink)b.textContent='Bağlantıyı Kopyala'},2000)});
 function wDraw(){
   var o=wOpts(),S2=700,c=S2/2,R=c-30,i,g;cx.clearRect(0,0,S2,S2);cx.save();cx.translate(c,c);
   g=cx.createLinearGradient(-c,-c,c,c);g.addColorStop(0,'#3a4150');g.addColorStop(.5,'#12151b');g.addColorStop(1,'#323847');cx.beginPath();cx.arc(0,0,c-4,0,7);cx.fillStyle=g;cx.fill();
@@ -328,16 +339,16 @@ document.fonts&&document.fonts.ready.then(function(){if(!wb)wDraw()});wDraw();
 async function spin(){
   if(wb)return;var o=wOpts();if(o.length<2||o.length>24){err('werr',o.length<2?'En az 2 seçenek yaz.':'En fazla 24 seçenek olabilir.');return}err('werr');
   wb=true;$('wgo').disabled=true;SL.cark=null;refreshRev();var sec=mode==='secret';wHide=sec;if(sec)wDraw();
-  var n=o.length,seg=360/n,idx=rnd(n),jit=(rnd(81)-40)/100*seg,need=((360-((idx+.5)*seg+jit))%360+360)%360,cur=((wRot%360)+360)%360;
+  var fl=wFull(),n=o.length,seg=360/n,idx=rnd(n),jit=(rnd(81)-40)/100*seg,need=((360-((idx+.5)*seg+jit))%360+360)%360,cur=((wRot%360)+360)%360;
   var start=wRot,total=360*(reduce()?1:6+rnd(3))+((need-cur)+360)%360,dur=reduce()?600:6800+rnd(1400),lastK=Math.floor(start/seg),lastS=0,t0=performance.now(),lastF=t0,P=3.3;
-  setRes('w','…','Çark dönüyor…',false);S.whoosh(.7);$('wh').classList.remove('win');
+  wShowLink('');setRes('w','…','Çark dönüyor…',false);S.whoosh(.7);$('wh').classList.remove('win');
   await new Promise(function(done){(function f(now){
     var p=Math.min(1,(now-t0)/dur),e=1-Math.pow(1-p,P),sp=total*P*Math.pow(1-p,P-1)/dur;wRot=start+total*e;wc.style.transform='rotate('+wRot+'deg)';
     var k=Math.floor(wRot/seg);if(k!==lastK){lastK=k;if(now-lastS>26){lastS=now;S.tick(Math.min(1,.35+sp/1.4));ptrA=-Math.min(30,8+sp*12)}}
     ptrA*=Math.exp(-(now-lastF)/70);lastF=now;$('ptr').style.transform='rotate('+ptrA.toFixed(2)+'deg)';
     if(p<1)requestAnimationFrame(f);else{$('ptr').style.transform='none';done()}})(t0)});
   var win=o[idx],near=Math.abs(jit)>=.395*seg;S.hit(.5);
-  var finish=function(){wHide=false;wDraw();setRes('w',win,'Kazanan seçildi!');$('wh').classList.add('win');burst($('wres'),20);S.chime();if(near)setTimeout(function(){moment('Kıl payı!','Çark neredeyse yan dilimde durdu','gasp')},500);
+  var finish=function(){wHide=false;wDraw();setRes('w',fl[idx].length>win.length?win+'…':win,'Kazanan seçildi!');wShowLink(fl[idx]);$('wh').classList.add('win');burst($('wres'),20);S.chime();if(near)setTimeout(function(){moment('Kıl payı!','Çark neredeyse yan dilimde durdu','gasp')},500);
     if($('wel').checked){var L=$('wt').value.split(/\r?\n/),k=-1,j;for(j=0;j<L.length;j++){if(L[j].trim()){k++;if(k===idx){L.splice(j,1);break}}}$('wt').value=L.join('\n');$('wsub').textContent='Kazanan listeden çıkarıldı.';memSave();wRot=0;wc.style.transform='none';wDraw()}};
   if(sec){setRes('w','?','Sonuç gizli',true);setSL('cark',async function(){S.unveil();await sleep(350);finish()})}else finish();
   wb=false;$('wgo').disabled=false}
